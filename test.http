@@ -1,0 +1,41 @@
+@protocol = http
+@host = localhost:5272
+@prefix = /api
+@userId = YourUserIdHere
+@expenseId = 2
+
+### Create a new expense
+POST {{protocol}}://{{host}}{{prefix}}/expenses HTTP/1.1
+Content-Type: application/json
+UserId: {{userId}}
+
+{
+    "title": "Groceries",
+    "amount": 50.0,
+    "occurredAt": "2022-01-01T00:00:00",
+    "category": "食"
+}
+
+#> @expenseId = {{response.body.$.id}}
+
+### Get an expense
+GET {{protocol}}://{{host}}{{prefix}}/expenses/{{expenseId}} HTTP/1.1
+
+### Get expenses
+GET {{protocol}}://{{host}}{{prefix}}/expenses HTTP/1.1
+
+### Update an expense
+PUT {{protocol}}://{{host}}{{prefix}}/expenses/{{expenseId}} HTTP/1.1
+Content-Type: application/json
+UserId: {{userId}}
+
+{
+    "title": "Groceries",
+    "amount": 60.0,
+    "occurredAt": "2022-01-01T02:00:00",
+    "category": "食"
+}
+
+### Delete an expense
+DELETE {{protocol}}://{{host}}{{prefix}}/expenses/{{expenseId}} HTTP/1.1
+UserId: {{userId}}

@@ -1,0 +1,298 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Vue App</title>
+
+    <!-- Include Bootstrap CSS from CDN -->
+    <link href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.0/css/bootstrap.min.css" rel="stylesheet">
+
+    <!-- Include Vue.js from CDN -->
+    <!-- <script src="https://unpkg.com/vue@next"></script> -->
+    <script src="https://unpkg.com/vue@3"></script>
+
+    <!-- Include Axios from CDN for HTTP requests -->
+    <script src="https://unpkg.com/axios/dist/axios.min.js"></script>
+</head>
+
+<body>
+    <div id="app" class="container py-5">
+        <h1 class="mb-4">Expense Tracker</h1>
+
+        <!-- How to set user id -->
+        <div class="card mb-4">
+            <div class="card-body">
+                <h5 class="card-title">How to set User ID</h5>
+                <p>
+                    To set the User ID, add '?userId=123' to the URL, where '123' is your User ID.
+                    For example, if your URL is 'http://localhost:8080', change it to
+                    'http://localhost:8080?userId=123'.
+                    The User ID is used to identify who is making the request.
+                </p>
+            </div>
+        </div>
+
+        <!-- Add a form for search parameters -->
+        <div class="card mb-4">
+            <div class="card-body">
+                <h5 class="card-title">Search Expenses</h5>
+                <!-- 
+                To search for expenses, fill in the fields below and click "Search".
+                - Title: The title of the expense you're looking for.
+                - Start Date: The earliest date of the expenses you're looking for.
+                - End Date: The latest date of the expenses you're looking for.
+                -->
+                <div class="form-group">
+                    <label for="title">Title:</label>
+                    <input v-model="searchParams.title" id="title" class="form-control">
+                </div>
+                <div class="form-group">
+                    <label for="startDate">Start Date:</label>
+                    <input v-model="searchParams.startDate" id="startDate" type="date" class="form-control">
+                </div>
+                <div class="form-group">
+                    <label for="endDate">End Date:</label>
+                    <input v-model="searchParams.endDate" id="endDate" type="date" class="form-control">
+                </div>
+                <button @click="searchExpenses" class="btn btn-primary">Search</button>
+            </div>
+        </div>
+
+        <!-- List of expenses -->
+        <div class="card mb-5">
+            <div class="card-body">
+                <h5 class="card-title">Expenses</h5>
+                <!-- 
+                The expenses matching your search parameters will be listed here.
+                -->
+                <table class="table table-striped">
+                    <thead class="thead-dark">
+                        <tr>
+                            <th scope="col">Id</th>
+                            <th scope="col">Title</th>
+                            <th scope="col">Amount</th>
+                            <th scope="col">Occurred At</th>
+                            <th scope="col">Category</th>
+                            <th scope="col">UserId</th>
+                            <th scope="col">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr v-for="expense in expenses" :key="expense.id">
+                            <td>{{ expense.id }}</td>
+
+                            <td v-if="expense !== editedExpense">{{ expense.title }}</td>
+                            <td v-else><input v-model="editedExpense.title" placeholder="Title" class="form-control">
+                            </td>
+
+                            <td v-if="expense !== editedExpense">{{ expense.amount }}</td>
+                            <td v-else><input v-model.number="editedExpense.amount" placeholder="Amount"
+                                    class="form-control"></td>
+
+                            <td v-if="expense !== editedExpense">{{ expense.occurredAt }}</td>
+                            <td v-else><input v-model="editedExpense.occurredAt" type="datetime-local" :max="maxDate"
+                                    placeholder="Occurred At" class="form-control"></td>
+
+                            <td v-if="expense !== editedExpense">{{ expense.category }}</td>
+                            <td v-else>
+                                <select v-model="editedExpense.category" class="form-control">
+                                    <option disabled value="">Please select a category</option>
+                                    <option>食</option>
+                                    <option>衣</option>
+                                    <option>住</option>
+                                    <option>行</option>
+                                </select>
+                            </td>
+
+                            <td>{{ expense.userId }}</td>
+
+                            <td>
+                                <button v-if="expense !== editedExpense" @click="editExpense(expense)"
+                                    class="btn btn-primary">Edit</button>
+                                <button v-else @click="updateExpense(editedExpense)"
+                                    class="btn btn-success">Update</button>
+                            </td>
+                            <td>
+                                <button class="btn btn-danger" @click="deleteExpense(expense.id)">Delete</button>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Form to add a new expense -->
+        <div class="card">
+            <div class="card-body">
+                <h5 class="card-title">Add Expense</h5>
+                <form @submit.prevent="addExpense" class="mb-3">
+                    <div class="form-group">
+                        <label for="title">Title</label>
+                        <input id="title" class="form-control" v-model="newExpense.title" placeholder="Title">
+                        <p class="text-danger" v-if="newExpense.title === ''">Title is required.</p>
+                    </div>
+                    <div class="form-group">
+                        <label for="amount">Amount</label>
+                        <input id="amount" type="text" class="form-control" v-model.number="newExpense.amount"
+                            placeholder="Amount">
+                        <p class="text-danger" v-if="newExpense.amount < 0">Amount must not be negative.</p>
+                    </div>
+                    <div class="form-group">
+                        <label for="occurredAt">Occurred At</label>
+                        <input id="occurredAt" type="datetime-local" class="form-control"
+                            v-model="newExpense.occurredAt" :max="maxDate" placeholder="Occurred At">
+                        <p class="text-danger" v-if="newExpense.occurredAt === ''">Occurred At is required.</p>
+                        <p class="text-danger" v-if="new Date(newExpense.occurredAt) > new Date(maxDate)">Occurred At
+                            must not be more than a year ago.</p>
+                    </div>
+                    <div class="form-group">
+                        <label for="category">Category</label>
+                        <select id="category" class="form-control" v-model="newExpense.category">
+                            <option disabled value="">Please select a category</option>
+                            <option>食</option>
+                            <option>衣</option>
+                            <option>住</option>
+                            <option>行</option>
+                        </select>
+                        <p class="text-danger" v-if="newExpense.category === ''">Category is required.</p>
+                    </div>
+                    <button type="submit" class="btn btn-primary" :disabled="!isValid">Add</button>
+                </form>
+            </div>
+        </div>
+
+    </div>
+
+    <script>
+        const app = Vue.createApp({
+            data() {
+                const oneYearAgo = new Date();
+                oneYearAgo.setFullYear(oneYearAgo.getFullYear() - 1);
+
+                return {
+                    expenses: [],
+                    newExpense: {
+                        title: '',
+                        amount: 0,
+                        occurredAt: oneYearAgo.toISOString().slice(0, 16),
+                        category: ''
+                    },
+                    editedExpense: null,
+                    searchParams: {
+                        title: '',
+                        startDate: null,
+                        endDate: null
+                    }
+                }
+            },
+            computed: {
+                isValid() {
+                    return this.newExpense.title !== '' &&
+                        this.newExpense.amount >= 0 &&
+                        this.newExpense.occurredAt !== '' &&
+                        this.newExpense.category !== '' &&
+                        new Date(this.newExpense.occurredAt) <= new Date(this.maxDate);
+                },
+                maxDate() {
+                    const oneYearAgo = new Date();
+                    oneYearAgo.setFullYear(oneYearAgo.getFullYear() - 1);
+                    return oneYearAgo.toISOString().slice(0, 16);
+                }
+            },
+            async created() {
+                // Get userId from query string
+                const params = new URLSearchParams(window.location.search);
+                const userId = params.get('userId');
+
+                // Add userId to request headers
+                const config = {
+                    headers: {
+                        'x-user-id': userId
+                    }
+                };
+
+                const response = await axios.get('/api/expenses', config);
+                // this.expenses = response.data;
+                this.expenses = await response.data.expenses;
+            },
+            methods: {
+                async searchExpenses() {
+                    var query = '';
+                    // 判斷是否有輸入日期，再決定是否要設置 query string
+                    var startDate = this.searchParams.startDate;
+                    if (startDate !== '' && startDate !== null) {
+                        query += `startDate=${startDate}&`;
+                    }
+
+                    var endDate = this.searchParams.endDate;
+                    if (endDate !== '' && endDate !== null) {
+                        query += `endDate=${endDate}&`;
+                    }
+
+                    // 判斷是否有輸入 title，再決定是否要設置 query string
+                    var title = this.searchParams.title;
+                    if (title !== '' && title !== null) {
+                        query += `title=${title}&`;
+                    }
+
+                    // 判斷 query 是否有值，若有值則移除最後一個 & 符號
+                    if (query !== '') {
+                        query = '?' + query.slice(0, -1);
+                    }
+
+                    // Get userId from query string
+                    const params = new URLSearchParams(window.location.search);
+                    const userId = params.get('userId');
+
+                    // Add userId to request headers
+                    const config = {
+                        headers: {
+                            'x-user-id': userId
+                        }
+                    };
+
+                    const response = await axios.get(`/api/expenses${query}`, config);
+                    this.expenses = await response.data.expenses;
+                },
+                async addExpense() {
+                    // Get userId from query string
+                    const params = new URLSearchParams(window.location.search);
+                    const userId = params.get('userId');
+
+                    // Add userId to request headers
+                    const config = {
+                        headers: {
+                            'x-user-id': userId
+                        }
+                    };
+
+                    const response = await axios.post('/api/expenses', this.newExpense, config);
+                    this.expenses.push(response.data);
+                    this.newExpense.description = '';
+                    this.newExpense.amount = 0;
+                },
+                editExpense(expense) {
+                    //this.editedExpense = Object.assign({}, expense);
+                    // this.editedExpense = { ...expense };
+                    console.log(expense);
+                    this.editedExpense = expense;
+                },
+                async updateExpense(expense) {
+                    const response = await axios.put(`/api/expenses/${expense.id}`, expense);
+                    const index = this.expenses.findIndex(e => e.id === expense.id);
+                    this.expenses.splice(index, 1, response.data);
+                },
+                async deleteExpense(id) {
+                    await axios.delete(`/api/expenses/${id}`);
+                    this.expenses = this.expenses.filter(expense => expense.id !== id);
+                }
+            }
+        });
+
+        app.mount('#app');
+    </script>
+</body>
+
+</html>
